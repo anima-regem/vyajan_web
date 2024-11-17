@@ -1,3 +1,48 @@
+/* Import Poppins font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
-@import 'tailwindcss/utilities'
+@import 'tailwindcss/utilities';
+
+:root {
+  /* Font Family */
+  --font-primary: 'Poppins', sans-serif;
+
+  /* Primary Colors */
+  --primary-dark: #7c4dff;  /* Deep Purple Accent */
+  --primary-light: #b47cff;
+  --primary-darker: #651fff;
+
+  /* Background Colors */
+  --background-dark: #121212;  /* Material Dark Background */
+  --background-surface: #1e1e1e;
+  --background-elevated: #2d2d2d;
+
+  /* Text Colors */
+  --text-primary: rgba(255, 255, 255, 0.87);
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --text-disabled: rgba(255, 255, 255, 0.38);
+
+  /* Accent Colors */
+  --accent-success: #00c853;
+  --accent-error: #ff1744;
+  --accent-warning: #ffab00;
+  --accent-info: #00b0ff;
+
+  /* Border and Divider */
+  --border-color: rgba(255, 255, 255, 0.12);
+  --divider-color: rgba(255, 255, 255, 0.12);
+
+  /* Overlay Colors */
+  --overlay-hover: rgba(255, 255, 255, 0.05);
+  --overlay-focus: rgba(255, 255, 255, 0.08);
+  --overlay-pressed: rgba(255, 255, 255, 0.12);
+}
+
+/* Apply dark theme base styles */
+body {
+  background-color: var(--background-dark);
+  color: var(--text-primary);
+  font-family: var(--font-primary);
+}
