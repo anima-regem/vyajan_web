@@ -1,6 +1,7 @@
 import { writable, get } from 'svelte/store';
 import { db, auth } from '$lib/firebase';
-import { collection, query, where, getDocs, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, addDoc, Timestamp } from 'firebase/firestore';
+import { fetchMetadata } from '$lib/services/metadata';
 
 interface Bookmark {
     id: string;
@@ -103,6 +104,43 @@ function createBookmarkStore() {
                 set({ bookmarks: [], loading: false });
             }
         },
+        addBookmark: async (url: string) => {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            try {
+                // Fetch metadata first
+                const metadata = await fetchMetadata(url);
+
+                // Create the bookmark with metadata
+                const bookmark = {
+                    url,
+                    userId: user.uid,
+                    createdAt: Timestamp.now(),
+                    isArchived: false,
+                    isPermanent: false,
+                    metadataTitle: metadata.title,
+                    metadataDescription: metadata.description,
+                    metadataImage: metadata.image
+                };
+
+                const docRef = await addDoc(collection(db, "links"), bookmark);
+                
+                // Update the store
+                update(state => ({
+                    ...state,
+                    bookmarks: [{
+                        id: docRef.id,
+                        ...bookmark
+                    }, ...state.bookmarks]
+                }));
+
+                return docRef.id;
+            } catch (error) {
+                console.error("Error adding bookmark:", error);
+                throw error;
+            }
+        },
         toggleArchived: async (bookmarkId: string) => {
             const user = auth.currentUser;
             if (!user) return;
@@ -151,6 +189,40 @@ function createBookmarkStore() {
                 }
             } catch (error) {
                 console.error("Error toggling important status:", error);
+            }
+        },
+        updateMetadata: async (bookmarkId: string) => {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            try {
+                const currentStore = get({ subscribe });
+                const bookmark = currentStore.bookmarks.find(b => b.id === bookmarkId);
+                
+                if (!bookmark) return;
+
+                // Fetch new metadata
+                const metadata = await fetchMetadata(bookmark.url);
+                
+                // Update in Firebase
+                const bookmarkRef = doc(db, "links", bookmarkId);
+                await updateDoc(bookmarkRef, {
+                    metadataTitle: metadata.title,
+                    metadataDescription: metadata.description,
+                    metadataImage: metadata.image
+                });
+
+                // Update the store
+                update(state => ({
+                    ...state,
+                    bookmarks: state.bookmarks.map(b => 
+                        b.id === bookmarkId 
+                            ? { ...b, ...metadata }
+                            : b
+                    )
+                }));
+            } catch (error) {
+                console.error("Error updating metadata:", error);
             }
         }
     };

@@ -1,24 +1,19 @@
 <script lang="ts">
-    import { db, auth } from "$lib/firebase";
-    import { addDoc, collection, Timestamp } from "firebase/firestore";
     import { onMount } from "svelte";
-    import { browser } from "$app/environment";
     import { onAuthStateChanged } from "firebase/auth";
+    import { auth } from "$lib/firebase";
     import BookmarkList from "$lib/components/BookmarkList.svelte";
+    import AddLink from "$lib/components/AddLink.svelte";
     import { bookmarkStore } from "$lib/stores/bookmarkStore";
 
-    let url = "";
     let selectedBookmark: any = null;
     let showModal = false;
-    let currentUser = null;
-
     const DUMMY_IMAGE = "https://placehold.co/600x400/1e1e1e/ffffff?text=No+Image";
 
     $: ({ bookmarks, loading } = $bookmarkStore);
 
     onMount(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
-            currentUser = user;
             if (user) {
                 bookmarkStore.loadAll();
             }
@@ -26,44 +21,6 @@
 
         return () => unsubscribe();
     });
-
-    // Function to handle URL paste
-    function handleFocus(event: { target: { select: () => void; }; }) {
-        if (browser) {
-            navigator.clipboard.readText().then(text => {
-                if (text.startsWith('http')) {
-                    url = text;
-                    event.target.select();
-                }
-            }).catch(err => {
-                console.error('Failed to read clipboard:', err);
-            });
-        }
-    }
-
-    // Function to add new bookmark
-    async function addBookmark() {
-        if (!url || !currentUser) return;
-
-        try {
-            await addDoc(collection(db, "links"), {
-                url,
-                userId: currentUser.uid,
-                createdAt: Timestamp.now(),
-                isArchived: false,
-                isPermanent: false,
-                metadataTitle: "",
-                metadataDescription: "",
-                metadataImage: "",
-                title: ""
-            });
-            
-            url = "";
-            await bookmarkStore.loadAll();
-        } catch (error) {
-            console.error("Error adding bookmark:", error);
-        }
-    }
 
     function formatDate(timestamp: { toDate: () => any; }) {
         if (!timestamp) return '';
@@ -96,40 +53,40 @@
         await bookmarkStore.toggleImportant(bookmarkId);
         closeModal();
     }
+
+    async function handleRefreshMetadata(bookmarkId: string) {
+        await bookmarkStore.updateMetadata(bookmarkId);
+    }
+
+    function showSuccessMessage(message: string) {
+        // Add your success toast/notification logic here
+        alert(message);
+    }
+
+    function showErrorMessage(message: string) {
+        // Add your error toast/notification logic here
+        alert(message);
+    }
 </script>
 
-<svelte:window on:keydown={(e) => e.key === 'Escape' && closeModal()}/>
-
-<div class="space-y-6">
-    <div class="bg-background-surface rounded-lg p-6 border border-border-color">
-        <h1 class="text-2xl font-bold mb-6">Add New Bookmark</h1>
-        <div class="flex gap-4">
-            <input
-                type="url"
-                bind:value={url}
-                placeholder="Paste your URL here"
-                class="flex-1 p-3 border rounded-lg bg-background-primary text-text-primary border-border-color focus:outline-none focus:border-primary-dark"
-                on:focus={handleFocus}
-            />
-            <button
-                on:click={addBookmark}
-                class="px-6 py-3 bg-primary-dark hover:bg-primary-light text-text-primary rounded-lg transition-colors flex items-center space-x-2"
-                disabled={!url}
-            >
-                <span class="text-xl">➕</span>
-                <span>Add</span>
-            </button>
-        </div>
-    </div>
-
+<main class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">My Bookmarks</h1>
+    
+    <AddLink 
+        on:success={({ detail }) => showSuccessMessage(detail.message)}
+        on:error={({ detail }) => showErrorMessage(detail.message)}
+    />
+    
     <BookmarkList 
         {bookmarks}
         {loading}
         {openModal}
         {DUMMY_IMAGE}
         {formatDate}
+        on:success={({ detail }) => showSuccessMessage(detail.message)}
+        on:error={({ detail }) => showErrorMessage(detail.message)}
     />
-</div>
+</main>
 
 <!-- Modal -->
 {#if showModal}
@@ -142,7 +99,7 @@
         tabindex="-1"
     >
         <div 
-            class="bg-background-surface rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl"
+            class="bg-background-surface bg-black rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl"
             on:click|stopPropagation={() => {}}
         >
             <div class="p-6">
@@ -179,7 +136,7 @@
                         <div class="text-sm text-text-secondary mb-4">
                             {formatDate(selectedBookmark.createdAt)}
                         </div>
-                        <div class="flex space-x-4">
+                        <div class="flex flex-wrap gap-4">
                             <a
                                 href={selectedBookmark.url}
                                 target="_blank"
@@ -199,6 +156,12 @@
                                 on:click={() => handleImportant(selectedBookmark.id)}
                             >
                                 {selectedBookmark.isPermanent ? 'Remove from Important' : 'Mark as Important'}
+                            </button>
+                            <button
+                                class="px-4 py-2 bg-background-hover hover:bg-background-surface text-text-primary rounded-lg transition-colors border border-border-color"
+                                on:click={() => handleRefreshMetadata(selectedBookmark.id)}
+                            >
+                                Refresh Metadata
                             </button>
                         </div>
                     </div>
